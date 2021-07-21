@@ -46,9 +46,11 @@
 
             <input type="hidden" name="action" id="action">
 
-            <hr>
+            <div id="status" class="mt-2 float-end">
 
-            <div id="output" class="chatbox">
+            </div>
+
+            <div id="output" class="chatbox mt-3">
 
             </div>
 
@@ -72,6 +74,8 @@
         integrity="sha512-NHRCwRf2LnVSlLDejCA9oS3fG3/FLSQIPCjAWl3M7tVi5wszwr6FxkjotWnQDXLE+aLKcxRrzFDNEgXj9nvkPw=="
         crossorigin="anonymous"></script>
 
+<script src="/static/reconnecting-websocket.min.js"></script>
+
 <script>
     let socket = null;
     let o = document.getElementById("output");
@@ -86,18 +90,25 @@
     }
 
     document.addEventListener("DOMContentLoaded", function () {
-        socket = new WebSocket("ws://127.0.0.1:8080/ws");
+        socket = new ReconnectingWebSocket("ws://127.0.0.1:8080/ws", null, {debug: true, reconectInterval: 3000});
+
+        const offline = `<span class="badge bg-danger">Not connected</span>`
+        const online = `<span class="badge bg-success">Connected</span>`
+        let statusDiv = document.getElementById("status");
 
         socket.onopen = () => {
             console.log("Successfully connected");
+            statusDiv.innerHTML = online;
         }
 
         socket.onclose = () => {
             console.log("connection closed");
+            statusDiv.innerHTML = offline;
         }
 
         socket.onerror = error => {
             console.log("there was an error");
+            statusDiv.innerHTML = offline;
         }
 
         socket.onmessage = msg => {
@@ -137,14 +148,11 @@
             if (event.code === "Enter") {
                 if (!socket) {
                     console.log("no connection");
-                    return false
+                    return false;
                 }
 
-                if ((userField.value === "") || (messageField.value === "")) {
-                    errorMessage("Fill out username and message!");
+                if(!checkFields()) {
                     return false;
-                } else {
-                    sendMessage()
                 }
 
                 event.preventDefault();
@@ -154,14 +162,18 @@
 
 
         document.getElementById("sendBtn").addEventListener("click", function () {
-            if ((userField.value === "") || (messageField.value === "")) {
-                errorMessage("Fill out username and message!");
-                return false;
-            } else {
-                sendMessage()
-            }
+            checkFields();
         })
     })
+
+    function checkFields() {
+        if ((userField.value === "") || (messageField.value === "")) {
+            errorMessage("Fill out username and message!");
+            return false;
+        } else {
+            sendMessage();
+        }
+    }
 
     function sendMessage() {
         let jsonData = {};
